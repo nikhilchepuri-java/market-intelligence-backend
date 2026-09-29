@@ -50,7 +50,7 @@ class TechnicalServiceTest {
             }
         };
 
-        TechnicalSnapshot snapshot = new TechnicalService(provider).snapshot("TEST");
+        TechnicalSnapshot snapshot = new TechnicalService(provider, new SupportResistanceService()).snapshot("TEST");
 
         assertEquals(349.0, snapshot.price());
         assertEquals(339.5, snapshot.sma20(), 0.000001);
