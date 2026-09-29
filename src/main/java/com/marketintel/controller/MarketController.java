@@ -4,6 +4,7 @@ import com.marketintel.model.*;
 import com.marketintel.service.*;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.*;
 import java.util.*;
 
 @RestController
@@ -30,6 +31,20 @@ public class MarketController {
         return market.quote(symbol);
     }
 
+    @GetMapping("/candles/{symbol}")
+    public List<Candle> candles(
+            @PathVariable String symbol,
+            @RequestParam(defaultValue = "1D") String timeframe,
+            @RequestParam(required = false) Instant from,
+            @RequestParam(required = false) Instant to) {
+        Instant end = to == null ? Instant.now() : to;
+        Instant start = from == null ? end.minus(Duration.ofDays(365)) : from;
+        if (start.isAfter(end)) {
+            throw new IllegalArgumentException("from must be before to");
+        }
+        return market.candles(symbol, timeframe, start, end);
+    }
+
     @GetMapping("/technicals/{symbol}")
     public TechnicalSnapshot technical(@PathVariable String symbol) {
         return technical.snapshot(symbol);
@@ -42,6 +57,6 @@ public class MarketController {
 
     @GetMapping("/health")
     public Map<String, String> health() {
-        return Map.of("status", "UP", "version", "V1");
+        return Map.of("status", "UP", "version", "V1.1");
     }
 }
