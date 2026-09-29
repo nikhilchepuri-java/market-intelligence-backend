@@ -14,9 +14,9 @@ public class MarketController {
     private final MarketDataProvider market;
     private final TechnicalService technical;
     private final SignalService signals;
-    private final NewsProvider news;
+    private final NewsService news;
 
-    public MarketController(MarketDataProvider market, TechnicalService technical, SignalService signals, NewsProvider news) {
+    public MarketController(MarketDataProvider market, TechnicalService technical, SignalService signals, NewsService news) {
         this.market = market;
         this.technical = technical;
         this.signals = signals;
