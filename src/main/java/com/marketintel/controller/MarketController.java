@@ -14,11 +14,14 @@ public class MarketController {
     private final MarketDataProvider market;
     private final TechnicalService technical;
     private final SignalService signals;
+    private final SupportResistanceService supportResistanceService;
 
-    public MarketController(MarketDataProvider market, TechnicalService technical, SignalService signals) {
+    public MarketController(MarketDataProvider market, TechnicalService technical, SignalService signals,
+                            SupportResistanceService supportResistanceService) {
         this.market = market;
         this.technical = technical;
         this.signals = signals;
+        this.supportResistanceService = supportResistanceService;
     }
 
     @GetMapping("/quotes")
@@ -48,6 +51,17 @@ public class MarketController {
     @GetMapping("/technicals/{symbol}")
     public TechnicalSnapshot technical(@PathVariable String symbol) {
         return technical.snapshot(symbol);
+    }
+
+    @GetMapping("/levels/{symbol}")
+    public SupportResistance levels(@PathVariable String symbol) {
+        TechnicalSnapshot snapshot = technical.snapshot(symbol);
+        return new SupportResistance(
+                snapshot.support1(),
+                snapshot.support2(),
+                snapshot.resistance1(),
+                snapshot.resistance2()
+        );
     }
 
     @GetMapping("/signals/{symbol}")
