@@ -20,6 +20,6 @@ public class SignalService {
                 String.format("Lose %.2f and fail to reclaim", t.support1()),
                 String.format("%.2f -> %.2f", t.resistance1(), t.resistance2()),
                 String.format("%.2f -> %.2f", t.support1(), t.support2()),
-                "V1 signal is rule-based and transparent; it is not a prediction or investment recommendation.");
+                "V1.1 signal is rule-based and transparent; it uses historical indicators and is not a prediction or investment recommendation.");
     }
 }
