@@ -29,7 +29,7 @@ class TechnicalServiceTest {
                     close + 2.0,
                     close - 2.0,
                     close,
-                    1_000L + (i % 20) * 100L
+                    i == 249 ? 3_000L : 1_000L
             ));
         }
 
@@ -58,9 +58,21 @@ class TechnicalServiceTest {
         assertEquals(249.5, snapshot.sma200(), 0.000001);
         assertEquals(100.0, snapshot.rsi14(), 0.000001);
         assertEquals(4.0, snapshot.atr14(), 0.000001);
+
         assertTrue(snapshot.ema9() > snapshot.ema21());
         assertTrue(snapshot.ema21() > snapshot.ema50());
-        assertTrue(snapshot.relativeVolume20 > 0.0);
+
+        System.out.println("price = " + snapshot.price());
+        System.out.println("sma20 = " + snapshot.sma20());
+        System.out.println("sma50 = " + snapshot.sma50());
+        System.out.println("sma200 = " + snapshot.sma200());
+        System.out.println("rsi14 = " + snapshot.rsi14());
+        System.out.println("ema21 = " + snapshot.ema21());
+        System.out.println("relativeVolume20 = " + snapshot.relativeVolume20());
+        System.out.println("volume = " + snapshot.volume());
+        System.out.println("averageVolume20 = " + snapshot.averageVolume20());
+        System.out.println("conditionsMet = " + snapshot.conditionsMet());
+        assertTrue(snapshot.relativeVolume20() >= 1.0);
         assertEquals("BULLISH", snapshot.trend());
         assertEquals(6, snapshot.conditionsMet());
         assertEquals(6, snapshot.totalConditions());
