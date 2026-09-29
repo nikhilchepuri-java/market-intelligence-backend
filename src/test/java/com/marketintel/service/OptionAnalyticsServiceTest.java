@@ -9,29 +9,82 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class OptionAnalyticsServiceTest {
+
     @Test
     void detectsUnusualVolumeRelativeToOpenInterest() {
+        LocalDate expiration = LocalDate.now().plusDays(30);
+
         OptionContract contract = new OptionContract(
-                "NVDA-test", "NVDA", OptionType.CALL, LocalDate.now().plusDays(30),
+                "NVDA-test", "NVDA", OptionType.CALL, expiration,
                 180, 4, 5, 4.5, 3000, 1000, 0.30,
                 0.5, 0.02, -0.03, 0.10, 0.02, 100);
 
-        OptionAnalyticsService service = new OptionAnalyticsService((symbol, expiration) ->
-                new OptionChain(symbol, expiration, List.of(contract)));
+        OptionsProvider provider = new OptionsProvider() {
+            @Override
+            public List<LocalDate> expirations(String underlying) {
+                return List.of(expiration);
+            }
 
-        assertEquals(1, service.unusual("NVDA", contract.expiration()).size());
-        assertEquals(3.0, service.unusual("NVDA", contract.expiration()).get(0).volumeOpenInterestRatio());
+            @Override
+            public OptionChain chain(String underlying, LocalDate requestedExpiration) {
+                return new OptionChain(
+                        underlying,
+                        requestedExpiration,
+                        List.of(contract)
+                );
+            }
+        };
+
+        OptionAnalyticsService service =
+                new OptionAnalyticsService(provider);
+
+        assertEquals(
+                1,
+                service.unusual("NVDA", expiration).size()
+        );
+
+        assertEquals(
+                3.0,
+                service.unusual("NVDA", expiration)
+                        .get(0)
+                        .volumeOpenInterestRatio()
+        );
     }
 
     @Test
     void calculatesPositiveCallScenarioWhenUnderlyingRises() {
         LocalDate expiration = LocalDate.now().plusDays(30);
-        OptionAnalyticsService service = new OptionAnalyticsService((symbol, date) ->
-                new OptionChain(symbol, date, List.of()));
+
+        OptionsProvider provider = new OptionsProvider() {
+            @Override
+            public List<LocalDate> expirations(String underlying) {
+                return List.of(expiration);
+            }
+
+            @Override
+            public OptionChain chain(String underlying, LocalDate requestedExpiration) {
+                return new OptionChain(
+                        underlying,
+                        requestedExpiration,
+                        List.of()
+                );
+            }
+        };
+
+        OptionAnalyticsService service =
+                new OptionAnalyticsService(provider);
 
         OptionScenario result = service.scenario(new OptionScenarioRequest(
-                "NVDA", OptionType.CALL, 180, expiration,
-                180, 0.30, 200, 0.04, 100));
+                "NVDA",
+                OptionType.CALL,
+                180,
+                expiration,
+                180,
+                0.30,
+                200,
+                0.04,
+                100
+        ));
 
         assertTrue(result.theoreticalPrice() > 0);
         assertTrue(result.estimatedProfitLoss() > 0);
