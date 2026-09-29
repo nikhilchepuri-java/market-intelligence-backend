@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: market-intelligence-api
+  datasource:
+    url: jdbc:h2:file:./data/marketintel;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+  h2:
+    console:
+      enabled: true
+server:
+  port: 8080
+market:
+  provider: ${MARKET_PROVIDER:demo}
+  finnhub-api-key: ${FINNHUB_API_KEY:}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
