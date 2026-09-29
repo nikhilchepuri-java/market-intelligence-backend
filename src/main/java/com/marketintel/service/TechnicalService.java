@@ -107,17 +107,11 @@ public class TechnicalService {
     private double ema(List<Double> values, int period) {
         if (values.isEmpty()) return 0.0;
         double alpha = 2.0 / (period + 1.0);
-        int seedStart = Math.max(0, values.size() - period);
-        double ema = values.subList(seedStart, values.size())
+        int seedCount = Math.min(period, values.size());
+        double ema = values.subList(0, seedCount)
                 .stream().mapToDouble(Double::doubleValue).average().orElse(values.get(0));
-        for (int i = seedStart + period; i < values.size(); i++) {
+        for (int i = seedCount; i < values.size(); i++) {
             ema = alpha * values.get(i) + (1.0 - alpha) * ema;
-        }
-        if (values.size() <= period) {
-            ema = values.get(0);
-            for (int i = 1; i < values.size(); i++) {
-                ema = alpha * values.get(i) + (1.0 - alpha) * ema;
-            }
         }
         return ema;
     }
