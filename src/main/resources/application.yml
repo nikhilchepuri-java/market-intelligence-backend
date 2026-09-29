@@ -17,6 +17,9 @@ server:
 market:
   provider: ${MARKET_PROVIDER:demo}
   finnhub-api-key: ${FINNHUB_API_KEY:}
+  options-provider: ${MARKET_OPTIONS_PROVIDER:demo}
+  tradier-token: ${TRADIER_TOKEN:}
+  tradier-base-url: ${TRADIER_BASE_URL:https://api.tradier.com}
 management:
   endpoints:
     web:
