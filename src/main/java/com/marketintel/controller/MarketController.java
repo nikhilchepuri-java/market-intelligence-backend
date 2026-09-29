@@ -50,6 +50,17 @@ public class MarketController {
         return technical.snapshot(symbol);
     }
 
+    @GetMapping("/levels/{symbol}")
+    public SupportResistance levels(@PathVariable String symbol) {
+        TechnicalSnapshot snapshot = technical.snapshot(symbol);
+        return new SupportResistance(
+                snapshot.support1(),
+                snapshot.support2(),
+                snapshot.resistance1(),
+                snapshot.resistance2()
+        );
+    }
+
     @GetMapping("/signals/{symbol}")
     public MarketSignal signal(@PathVariable String symbol) {
         return signals.signal(symbol);

@@ -16,13 +16,12 @@ import java.util.Locale;
 public class TechnicalService {
     private static final int RSI_PERIOD = 14;
     private static final int ATR_PERIOD = 14;
-    private static final int SUPPORT_RESISTANCE_LOOKBACK = 120;
-    private static final int SWING_WINDOW = 2;
-
     private final MarketDataProvider provider;
+    private final SupportResistanceService supportResistanceService;
 
-    public TechnicalService(MarketDataProvider provider) {
+    public TechnicalService(MarketDataProvider provider, SupportResistanceService supportResistanceService) {
         this.provider = provider;
+        this.supportResistanceService = supportResistanceService;
     }
 
     public TechnicalSnapshot snapshot(String symbol) {
@@ -61,11 +60,11 @@ public class TechnicalService {
         long volume = candles.get(candles.size() - 1).volume();
         double relativeVolume20 = averageVolume20 > 0 ? volume / averageVolume20 : 0.0;
 
-        double[] levels = supportResistance(candles, price);
-        double support1 = levels[0];
-        double support2 = levels[1];
-        double resistance1 = levels[2];
-        double resistance2 = levels[3];
+        var levels = supportResistanceService.calculate(candles, price);
+        double support1 = levels.support1();
+        double support2 = levels.support2();
+        double resistance1 = levels.resistance1();
+        double resistance2 = levels.resistance2();
 
         int conditions = 0;
         int totalConditions = 6;
@@ -173,35 +172,4 @@ public class TechnicalService {
         return atr;
     }
 
-    private double[] supportResistance(List<Candle> candles, double price) {
-        int start = Math.max(0, candles.size() - SUPPORT_RESISTANCE_LOOKBACK);
-        List<Double> supports = new ArrayList<>();
-        List<Double> resistances = new ArrayList<>();
-
-        for (int i = start + SWING_WINDOW; i < candles.size() - SWING_WINDOW; i++) {
-            double low = candles.get(i).low();
-            double high = candles.get(i).high();
-            boolean swingLow = true;
-            boolean swingHigh = true;
-
-            for (int j = i - SWING_WINDOW; j <= i + SWING_WINDOW; j++) {
-                if (j == i) continue;
-                if (candles.get(j).low() <= low) swingLow = false;
-                if (candles.get(j).high() >= high) swingHigh = false;
-            }
-
-            if (swingLow && low < price) supports.add(low);
-            if (swingHigh && high > price) resistances.add(high);
-        }
-
-        supports.sort(Comparator.reverseOrder());
-        resistances.sort(Comparator.naturalOrder());
-
-        double support1 = supports.size() > 0 ? supports.get(0) : price * 0.98;
-        double support2 = supports.size() > 1 ? supports.get(1) : support1 * 0.97;
-        double resistance1 = resistances.size() > 0 ? resistances.get(0) : price * 1.02;
-        double resistance2 = resistances.size() > 1 ? resistances.get(1) : resistance1 * 1.03;
-
-        return new double[]{support1, support2, resistance1, resistance2};
-    }
 }
