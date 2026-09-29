@@ -14,14 +14,11 @@ public class MarketController {
     private final MarketDataProvider market;
     private final TechnicalService technical;
     private final SignalService signals;
-    private final SupportResistanceService supportResistanceService;
 
-    public MarketController(MarketDataProvider market, TechnicalService technical, SignalService signals,
-                            SupportResistanceService supportResistanceService) {
+    public MarketController(MarketDataProvider market, TechnicalService technical, SignalService signals) {
         this.market = market;
         this.technical = technical;
         this.signals = signals;
-        this.supportResistanceService = supportResistanceService;
     }
 
     @GetMapping("/quotes")
