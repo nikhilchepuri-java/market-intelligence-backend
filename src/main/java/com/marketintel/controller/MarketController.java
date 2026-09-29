@@ -14,11 +14,13 @@ public class MarketController {
     private final MarketDataProvider market;
     private final TechnicalService technical;
     private final SignalService signals;
+    private final NewsProvider news;
 
-    public MarketController(MarketDataProvider market, TechnicalService technical, SignalService signals) {
+    public MarketController(MarketDataProvider market, TechnicalService technical, SignalService signals, NewsProvider news) {
         this.market = market;
         this.technical = technical;
         this.signals = signals;
+        this.news = news;
     }
 
     @GetMapping("/quotes")
@@ -59,6 +61,19 @@ public class MarketController {
                 snapshot.resistance1(),
                 snapshot.resistance2()
         );
+    }
+
+    @GetMapping("/news/{symbol}")
+    public List<NewsArticle> news(
+            @PathVariable String symbol,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to) {
+        LocalDate end = to == null ? LocalDate.now() : to;
+        LocalDate start = from == null ? end.minusDays(7) : from;
+        if (start.isAfter(end)) {
+            throw new IllegalArgumentException("from must be before to");
+        }
+        return news.news(symbol, start, end);
     }
 
     @GetMapping("/signals/{symbol}")
