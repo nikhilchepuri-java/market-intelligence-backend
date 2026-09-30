@@ -79,6 +79,6 @@ public class StrategyAnalyticsService {
         return new Greeks(delta,gamma,theta,vega,rho);
     }
     private double cdf(double x){return 0.5*(1+erf(x/Math.sqrt(2)));}
-    private double erf(double x){double sign=x<0?-1:1;x=Math.abs(x);double q=1/(1+0.3275911*x);double y=1-((((((1.061405429*q-1.453152027)*q)+1.421413741)*q-0.284496736)*q+0.254829592)*q*Math.exp(-x*x);return sign*y;}
+    private double erf(double x){double sign=x<0?-1:1;x=Math.abs(x);double q=1/(1+0.3275911*x);double y = 1 - (((((1.061405429 * q - 1.453152027) * q) + 1.421413741) * q - 0.284496736) * q + 0.254829592) * q * Math.exp(-x * x);return sign*y;}
     private record Greeks(double delta,double gamma,double theta,double vega,double rho){}
 }
