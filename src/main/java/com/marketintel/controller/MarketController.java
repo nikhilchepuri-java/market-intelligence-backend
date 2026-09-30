@@ -15,12 +15,14 @@ public class MarketController {
     private final TechnicalService technical;
     private final SignalService signals;
     private final NewsService news;
+    private final org.springframework.core.env.Environment environment;
 
-    public MarketController(MarketDataProvider market, TechnicalService technical, SignalService signals, NewsService news) {
+    public MarketController(MarketDataProvider market, TechnicalService technical, SignalService signals, NewsService news, org.springframework.core.env.Environment environment) {
         this.market = market;
         this.technical = technical;
         this.signals = signals;
         this.news = news;
+        this.environment = environment;
     }
 
     @GetMapping("/quotes")
@@ -79,6 +81,16 @@ public class MarketController {
     @GetMapping("/signals/{symbol}")
     public MarketSignal signal(@PathVariable String symbol) {
         return signals.signal(symbol);
+    }
+
+    @GetMapping("/data-status")
+    public Map<String, String> dataStatus() {
+        String provider = environment.getProperty("market.provider", "unknown");
+        return Map.of(
+                "provider", provider,
+                "mode", "finnhub".equalsIgnoreCase(provider) ? "realtime" : "demo",
+                "optionsProvider", environment.getProperty("market.options-provider", "unknown")
+        );
     }
 
     @GetMapping("/health")
