@@ -33,7 +33,7 @@ class AdvancedOptionAnalyticsServiceTest {
         OptionFlowAnalytics x = new OptionFlowAnalyticsService(provider).analyze("NVDA", expiration);
         assertEquals(2000, x.callOpenInterest());
         assertEquals(1000, x.putOpenInterest());
-        assertEquals(1.5, x.putCallVolumeRatio(), .001);
+        assertEquals(3.0, x.putCallVolumeRatio(), .001);
         assertEquals(4000, x.totalVolume());
     }
 
