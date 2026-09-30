@@ -1,0 +1,3 @@
+package com.marketintel.service;
+import com.marketintel.model.*;import org.junit.jupiter.api.Test;import java.time.Instant;import java.util.*;import static org.junit.jupiter.api.Assertions.*;
+class PatternEngineServiceTest {@Test void detectsSmaBreakout(){var t=Instant.parse("2026-01-01T00:00:00Z");var f=List.of(new FeaturePoint("NVDA",t,100,0,101,99,100,50,2,1),new FeaturePoint("NVDA",t.plusSeconds(86400),99,-.01,99,99,99,50,2,1),new FeaturePoint("NVDA",t.plusSeconds(172800),103,.04,101,100,101,55,2,1));var x=new PatternEngineService().detect(f);assertTrue(x.stream().anyMatch(p->p.pattern().equals("SMA20_BREAKOUT")));}}
