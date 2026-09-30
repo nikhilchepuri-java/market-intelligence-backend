@@ -29,7 +29,8 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
             JsonNode n = mapper.readTree(client.send(HttpRequest.newBuilder(URI.create(url)).GET().build(), HttpResponse.BodyHandlers.ofString()).body());
             double c = n.path("c").asDouble(), pc = n.path("pc").asDouble();
             double ch = c - pc;
-            return new Quote(symbol.toUpperCase(), c, ch, pc == 0 ? 0 : ch / pc * 100, n.path("h").asDouble(), n.path("l").asDouble(), 0, Instant.now().toString());
+            long quoteEpoch = n.path("t").asLong(Instant.now().getEpochSecond());
+            return new Quote(symbol.toUpperCase(), c, ch, pc == 0 ? 0 : ch / pc * 100, n.path("h").asDouble(), n.path("l").asDouble(), 0, Instant.ofEpochSecond(quoteEpoch).toString());
         } catch (Exception e) {
             throw new IllegalStateException("Market data request failed for " + symbol, e);
         }
