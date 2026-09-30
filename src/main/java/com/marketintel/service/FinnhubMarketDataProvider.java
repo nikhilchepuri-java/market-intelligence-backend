@@ -30,6 +30,7 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
     public Quote quote(String symbol) {
         String requestedSymbol = symbol.toUpperCase(Locale.ROOT);
         String providerSymbol = providerSymbol(requestedSymbol);
+        ensureFinnhubSymbolSupported(requestedSymbol);
         JsonNode n = request("/quote?symbol=" + encode(providerSymbol));
 
         double c = n.path("c").asDouble(Double.NaN);
@@ -60,13 +61,23 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
 
     @Override
     public List<Quote> quotes(List<String> symbols) {
-        return symbols.stream().map(this::quote).toList();
+        List<Quote> result = new ArrayList<>();
+        for (String symbol : symbols) {
+            try {
+                result.add(quote(symbol));
+            } catch (RuntimeException ignored) {
+                // A provider entitlement for one symbol must not make the entire quote
+                // dashboard unavailable. The caller can treat the symbol as unavailable.
+            }
+        }
+        return result;
     }
 
     @Override
     public List<Candle> candles(String symbol, String timeframe, Instant from, Instant to) {
         String requestedSymbol = symbol.toUpperCase(Locale.ROOT);
         String providerSymbol = providerSymbol(requestedSymbol);
+        ensureFinnhubSymbolSupported(requestedSymbol);
 
         String resolution = switch (timeframe.toUpperCase(Locale.ROOT)) {
             case "1D", "D", "DAY" -> "D";
@@ -160,11 +171,17 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
         }
     }
 
+    private void ensureFinnhubSymbolSupported(String symbol) {
+        if ("NDX".equals(symbol)) {
+            throw new IllegalStateException(
+                    "Finnhub NDX index/CFD data is not enabled for this API key. " +
+                    "Use a supported US equity/ETF symbol such as QQQ, or enable the required Finnhub entitlement."
+            );
+        }
+    }
+
     private String providerSymbol(String symbol) {
-        return switch (symbol) {
-            case "NDX" -> "^NDX";
-            default -> symbol;
-        };
+        return symbol;
     }
 
     private String encode(String value) {
