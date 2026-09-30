@@ -2,6 +2,7 @@ package com.marketintel.controller;
 
 import com.marketintel.model.*;
 import com.marketintel.service.*;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.*;
@@ -119,6 +120,22 @@ public class MarketController {
         if (!(Boolean) status.get("candlesHealthy")) return "Finnhub candles check failed. Historical candles may require the appropriate Finnhub entitlement.";
         if (!(Boolean) status.get("newsHealthy")) return "Finnhub news check failed. Verify API access and news entitlement.";
         return "Finnhub quote, candle, and news checks are healthy.";
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, String>> handleProviderState(IllegalStateException e) {
+        return ResponseEntity.status(503).body(Map.of(
+                "error", "market_data_unavailable",
+                "message", e.getMessage() == null ? "Market data is unavailable." : e.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleBadRequest(IllegalArgumentException e) {
+        return ResponseEntity.badRequest().body(Map.of(
+                "error", "bad_request",
+                "message", e.getMessage() == null ? "Invalid request." : e.getMessage()
+        ));
     }
 
     @GetMapping("/health")
