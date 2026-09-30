@@ -1,7 +1,7 @@
 name: V3 Backend CI
 on:
   push:
-    branches: [ main, 'v3-*' ]
+    branches: [ main, 'v3-*', 'realtime-*' ]
   pull_request:
     branches: [ main, 'v3-*' ]
 jobs:
