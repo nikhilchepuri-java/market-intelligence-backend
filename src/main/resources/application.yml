@@ -17,8 +17,8 @@ server:
 market:
   # Real market data is the default. Use MARKET_PROVIDER=demo only for local/offline demos.
   provider: ${MARKET_PROVIDER:finnhub}
-  finnhub-api-key: ${FINNHUB_API_KEY:}
-  alpha-vantage-api-key: ${ALPHA_VANTAGE_API_KEY:}
+  finnhub-api-key: ${FINNHUB_API_KEY:daun821r01qjfq5915p0daun821r01qjfq5915pg}
+  alpha-vantage-api-key: ${ALPHA_VANTAGE_API_KEY:6M89E65BGH6GIOJY}
   options-provider: ${MARKET_OPTIONS_PROVIDER:tradier}
   tradier-token: ${TRADIER_TOKEN:}
   tradier-base-url: ${TRADIER_BASE_URL:https://api.tradier.com}
