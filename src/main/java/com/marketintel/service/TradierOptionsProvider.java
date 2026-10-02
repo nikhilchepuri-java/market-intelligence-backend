@@ -79,6 +79,10 @@ public class TradierOptionsProvider implements OptionsProvider {
     }
 
     private JsonNode request(String url) throws Exception {
+        if (token == null || token.isBlank()) {
+            throw new IllegalStateException("Tradier token is not configured");
+        }
+
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .header("Authorization", "Bearer " + token)
                 .header("Accept", "application/json")
