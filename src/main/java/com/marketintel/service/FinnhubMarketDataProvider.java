@@ -165,6 +165,15 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
             if (root == null || root.isMissingNode()) {
                 throw new IllegalStateException("Alpha Vantage returned an empty JSON response");
             }
+            if (root.has("Error Message")) {
+                throw new IllegalStateException("Alpha Vantage API error: " + alphaVantageMessage(root));
+            }
+            if (root.has("Note")) {
+                throw new IllegalStateException("Alpha Vantage rate-limit/provider notice: " + alphaVantageMessage(root));
+            }
+            if (root.has("Information")) {
+                throw new IllegalStateException("Alpha Vantage provider information: " + alphaVantageMessage(root));
+            }
             return root;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
