@@ -15,9 +15,11 @@ spring:
 server:
   port: 8080
 market:
-  provider: ${MARKET_PROVIDER:demo}
+  # Real market data is the default. Use MARKET_PROVIDER=demo only for local/offline demos.
+  provider: ${MARKET_PROVIDER:finnhub}
   finnhub-api-key: ${FINNHUB_API_KEY:}
-  options-provider: ${MARKET_OPTIONS_PROVIDER:demo}
+  alpha-vantage-api-key: ${ALPHA_VANTAGE_API_KEY:}
+  options-provider: ${MARKET_OPTIONS_PROVIDER:tradier}
   tradier-token: ${TRADIER_TOKEN:}
   tradier-base-url: ${TRADIER_BASE_URL:https://api.tradier.com}
 management:
