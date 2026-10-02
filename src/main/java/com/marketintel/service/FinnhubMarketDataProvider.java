@@ -21,9 +21,11 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
             .connectTimeout(Duration.ofSeconds(5))
             .build();
     private final String apiKey;
+    private final String alphaVantageApiKey;
 
     public FinnhubMarketDataProvider(org.springframework.core.env.Environment env) {
         this.apiKey = env.getProperty("market.finnhub-api-key", "");
+        this.alphaVantageApiKey = env.getProperty("market.alpha-vantage-api-key", "");
     }
 
     @Override
@@ -76,60 +78,107 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
     @Override
     public List<Candle> candles(String symbol, String timeframe, Instant from, Instant to) {
         String requestedSymbol = symbol.toUpperCase(Locale.ROOT);
-        String providerSymbol = providerSymbol(requestedSymbol);
-        ensureFinnhubSymbolSupported(requestedSymbol);
+        if ("NDX".equals(requestedSymbol)) {
+            throw new IllegalStateException(
+                    "NDX is an index, not a US equity/ETF candle symbol. Use a supported equity/ETF such as QQQ."
+            );
+        }
+        if (alphaVantageApiKey == null || alphaVantageApiKey.isBlank()) {
+            throw new IllegalStateException("ALPHA_VANTAGE_API_KEY is not configured");
+        }
 
-        String resolution = switch (timeframe.toUpperCase(Locale.ROOT)) {
-            case "1D", "D", "DAY" -> "D";
-            case "1H", "60" -> "60";
-            case "30M", "30" -> "30";
-            case "15M", "15" -> "15";
-            case "5M", "5" -> "5";
-            case "1M", "1" -> "1";
+        String tf = timeframe.toUpperCase(Locale.ROOT);
+        String function;
+        String interval = null;
+        switch (tf) {
+            case "1D", "D", "DAY" -> function = "TIME_SERIES_DAILY";
+            case "1M", "1", "5M", "5", "15M", "15", "30M", "30", "1H", "60" -> {
+                function = "TIME_SERIES_INTRADAY";
+                interval = switch (tf) {
+                    case "1M", "1" -> "1min";
+                    case "5M", "5" -> "5min";
+                    case "15M", "15" -> "15min";
+                    case "30M", "30" -> "30min";
+                    case "1H", "60" -> "60min";
+                    default -> throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+                };
+            }
             default -> throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
-        };
-
-        JsonNode n = request("/stock/candle?symbol=" + encode(providerSymbol)
-                + "&resolution=" + resolution
-                + "&from=" + from.getEpochSecond()
-                + "&to=" + to.getEpochSecond());
-
-        String status = n.path("s").asText("");
-        if ("no_data".equalsIgnoreCase(status)) {
-            return List.of();
-        }
-        if (!"ok".equalsIgnoreCase(status)) {
-            throw new IllegalStateException("Finnhub returned candle status '" + status
-                    + "' for " + requestedSymbol + " (provider symbol " + providerSymbol + ")");
         }
 
-        JsonNode opens = n.path("o"), highs = n.path("h"), lows = n.path("l");
-        JsonNode closes = n.path("c"), volumes = n.path("v"), timestamps = n.path("t");
-        if (!timestamps.isArray() || !opens.isArray() || !highs.isArray()
-                || !lows.isArray() || !closes.isArray() || !volumes.isArray()) {
-            throw new IllegalStateException("Finnhub returned an invalid candle payload for " + requestedSymbol);
+        String query = "/query?function=" + function
+                + "&symbol=" + encode(requestedSymbol)
+                + (interval == null ? "&outputsize=full" : "&interval=" + interval + "&outputsize=full")
+                + "&apikey=" + encode(alphaVantageApiKey);
+        JsonNode n = alphaVantageRequest(query);
+        String seriesName = interval == null ? "Time Series (Daily)" : "Time Series (" + interval + ")";
+        JsonNode series = n.path(seriesName);
+        if (!series.isObject()) {
+            throw new IllegalStateException("Alpha Vantage returned no candle series for " + requestedSymbol
+                    + ": " + alphaVantageMessage(n));
         }
 
-        int count = timestamps.size();
-        if (opens.size() != count || highs.size() != count || lows.size() != count
-                || closes.size() != count || volumes.size() != count) {
-            throw new IllegalStateException("Finnhub returned mismatched candle arrays for " + requestedSymbol);
-        }
+        List<Candle> result = new ArrayList<>();
+        Iterator<String> fields = series.fieldNames();
+        while (fields.hasNext()) {
+            String timestampText = fields.next();
+            Instant timestamp;
+            try {
+                timestamp = interval == null
+                        ? java.time.LocalDate.parse(timestampText).atStartOfDay(java.time.ZoneOffset.UTC).toInstant()
+                        : java.time.LocalDateTime.parse(timestampText,
+                                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                            .toInstant(java.time.ZoneOffset.UTC);
+            } catch (java.time.format.DateTimeParseException e) {
+                continue;
+            }
+            if (timestamp.isBefore(from) || timestamp.isAfter(to)) continue;
 
-        List<Candle> result = new ArrayList<>(count);
-        for (int i = 0; i < count; i++) {
+            JsonNode point = series.path(timestampText);
             result.add(new Candle(
                     requestedSymbol,
-                    timeframe.toUpperCase(Locale.ROOT),
-                    Instant.ofEpochSecond(timestamps.get(i).asLong()),
-                    opens.get(i).asDouble(),
-                    highs.get(i).asDouble(),
-                    lows.get(i).asDouble(),
-                    closes.get(i).asDouble(),
-                    volumes.get(i).asLong()
+                    tf,
+                    timestamp,
+                    point.path("1. open").asDouble(Double.NaN),
+                    point.path("2. high").asDouble(Double.NaN),
+                    point.path("3. low").asDouble(Double.NaN),
+                    point.path("4. close").asDouble(Double.NaN),
+                    point.path("5. volume").asLong(0)
             ));
         }
+        result.sort(Comparator.comparing(Candle::timestamp));
         return result;
+    }
+
+    private JsonNode alphaVantageRequest(String pathAndQuery) {
+        String url = "https://www.alphavantage.co" + pathAndQuery;
+        try {
+            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                    .timeout(Duration.ofSeconds(15))
+                    .header("Accept", "application/json")
+                    .GET().build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("Alpha Vantage HTTP " + response.statusCode());
+            }
+            JsonNode root = mapper.readTree(response.body());
+            if (root == null || root.isMissingNode()) {
+                throw new IllegalStateException("Alpha Vantage returned an empty JSON response");
+            }
+            return root;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Alpha Vantage request interrupted", e);
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException("Alpha Vantage request failed: " + e.getMessage(), e);
+        }
+    }
+
+    private String alphaVantageMessage(JsonNode root) {
+        if (root.has("Error Message")) return root.path("Error Message").asText();
+        if (root.has("Note")) return root.path("Note").asText();
+        if (root.has("Information")) return root.path("Information").asText();
+        return "unexpected response";
     }
 
     private JsonNode request(String pathAndQuery) {
