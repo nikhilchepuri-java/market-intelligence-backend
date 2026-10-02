@@ -36,6 +36,7 @@ class FinnhubMarketDataProviderTest {
         );
 
         assertTrue(error.getMessage().contains("NDX"));
-        assertTrue(error.getMessage().contains("entitlement"));
+        assertTrue(error.getMessage().contains("index"));
+        assertTrue(error.getMessage().contains("QQQ"));
     }
 }
