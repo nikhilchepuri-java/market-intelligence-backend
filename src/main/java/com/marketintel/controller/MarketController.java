@@ -74,11 +74,13 @@ public class MarketController {
     public Map<String, Object> dataStatus() {
         String provider = environment.getProperty("market.provider", "unknown");
         String key = environment.getProperty("market.finnhub-api-key", "");
+        String alphaKey = environment.getProperty("market.alpha-vantage-api-key", "");
         Map<String, Object> status = new LinkedHashMap<>();
         status.put("provider", provider);
         status.put("mode", "finnhub".equalsIgnoreCase(provider) ? "realtime" : "demo");
         status.put("optionsProvider", environment.getProperty("market.options-provider", "unknown"));
         status.put("apiKeyConfigured", key != null && !key.isBlank());
+        status.put("candleApiKeyConfigured", alphaKey != null && !alphaKey.isBlank());
 
         if (!"finnhub".equalsIgnoreCase(provider)) {
             status.put("quotesHealthy", true);
@@ -117,9 +119,10 @@ public class MarketController {
     private String statusMessage(Map<String, Object> status) {
         if (!(Boolean) status.get("apiKeyConfigured")) return "FINNHUB_API_KEY is not configured.";
         if (!(Boolean) status.get("quotesHealthy")) return "Finnhub quote check failed. Verify API key, entitlement, rate limit, and provider availability.";
-        if (!(Boolean) status.get("candlesHealthy")) return "Finnhub candles check failed. Historical candles may require the appropriate Finnhub entitlement.";
+        if (!(Boolean) status.get("candleApiKeyConfigured")) return "ALPHA_VANTAGE_API_KEY is not configured for historical candles.";
+        if (!(Boolean) status.get("candlesHealthy")) return "Alpha Vantage candles check failed. Verify symbol, API key, rate limit, and historical-data entitlement.";
         if (!(Boolean) status.get("newsHealthy")) return "Finnhub news check failed. Verify API access and news entitlement.";
-        return "Finnhub quote, candle, and news checks are healthy.";
+        return "Finnhub quotes/news and Alpha Vantage candles are healthy.";
     }
 
     @ExceptionHandler(IllegalStateException.class)
