@@ -108,7 +108,7 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
 
         String query = "/query?function=" + function
                 + "&symbol=" + encode(requestedSymbol)
-                + (interval == null ? "&outputsize=full" : "&interval=" + interval + "&outputsize=full")
+                + (interval == null ? "" : "&interval=" + interval + "&outputsize=compact")
                 + "&apikey=" + encode(alphaVantageApiKey);
         JsonNode n = alphaVantageRequest(query);
         String seriesName = interval == null ? "Time Series (Daily)" : "Time Series (" + interval + ")";
