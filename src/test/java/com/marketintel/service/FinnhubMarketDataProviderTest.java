@@ -3,6 +3,7 @@ package com.marketintel.service;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
+import java.lang.reflect.Method;
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -36,11 +37,17 @@ class FinnhubMarketDataProviderTest {
                 () -> provider().candles("NDX", "1D", to.minusSeconds(86400), to)
         );
 
-        // The Alpha Vantage request is expected to be attempted with QQQ as the
-        // historical proxy. The test key is intentionally invalid, so the provider
-        // call fails before returning candles; importantly, NDX is no longer rejected
-        // as an unsupported index before the provider is called.
-        assertTrue(error.getMessage().contains("Alpha Vantage"));
-        assertEquals(false, error.getMessage().contains("index symbols are not supported"));
+        // No Alpha Vantage key is configured in this unit test, so reaching this
+        // validation proves NDX was not rejected as an unsupported index.
+        assertEquals("ALPHA_VANTAGE_API_KEY is not configured", error.getMessage());
+
+        try {
+            Method mapper = FinnhubMarketDataProvider.class
+                    .getDeclaredMethod("candleProviderSymbol", String.class);
+            mapper.setAccessible(true);
+            assertEquals("QQQ", mapper.invoke(provider(), "NDX"));
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Unable to verify NDX candle proxy mapping", e);
+        }
     }
 }
