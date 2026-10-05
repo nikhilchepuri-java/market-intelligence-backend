@@ -17,16 +17,18 @@ public class MarketController {
     private final TechnicalService technical;
     private final SignalService signals;
     private final NewsService news;
+    private final MarketIntelligenceService intelligence;
     private final org.springframework.core.env.Environment environment;
     private final AtomicReference<CandleProbeResult> cachedCandleProbe = new AtomicReference<>();
     private static final Duration CANDLE_HEALTH_CACHE_TTL = Duration.ofSeconds(60);
 
     public MarketController(MarketDataProvider market, TechnicalService technical, SignalService signals,
-                             NewsService news, org.springframework.core.env.Environment environment) {
+                             NewsService news, MarketIntelligenceService intelligence, org.springframework.core.env.Environment environment) {
         this.market = market;
         this.technical = technical;
         this.signals = signals;
         this.news = news;
+        this.intelligence = intelligence;
         this.environment = environment;
     }
 
@@ -88,6 +90,9 @@ public class MarketController {
 
     @GetMapping("/signals/{symbol}")
     public MarketSignal signal(@PathVariable String symbol) { return signals.signal(symbol); }
+
+    @GetMapping("/intelligence/{symbol}")
+    public MarketIntelligence intelligence(@PathVariable String symbol) { return intelligence.analyze(symbol); }
 
     @GetMapping("/data-status")
     public Map<String, Object> dataStatus() {
