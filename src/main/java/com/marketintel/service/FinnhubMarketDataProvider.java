@@ -261,7 +261,7 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
         return symbol;
     }
 
-    private String candleProviderSymbol(String symbol) {
+    String candleProviderSymbol(String symbol) {
         return "NDX".equals(symbol) ? "QQQ" : symbol;
     }
 
