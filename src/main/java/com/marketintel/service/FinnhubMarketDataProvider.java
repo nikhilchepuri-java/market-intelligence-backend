@@ -78,11 +78,8 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
     @Override
     public List<Candle> candles(String symbol, String timeframe, Instant from, Instant to) {
         String requestedSymbol = symbol.toUpperCase(Locale.ROOT);
-        if ("NDX".equals(requestedSymbol)) {
-            throw new IllegalStateException(
-                    "NDX is an index, not a US equity/ETF candle symbol. Use a supported equity/ETF such as QQQ."
-            );
-        }
+        String providerSymbol = candleProviderSymbol(requestedSymbol);
+
         if (alphaVantageApiKey == null || alphaVantageApiKey.isBlank()) {
             throw new IllegalStateException("ALPHA_VANTAGE_API_KEY is not configured");
         }
@@ -107,14 +104,14 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
         }
 
         String query = "/query?function=" + function
-                + "&symbol=" + encode(requestedSymbol)
+                + "&symbol=" + encode(providerSymbol)
                 + (interval == null ? "" : "&interval=" + interval + "&outputsize=compact")
                 + "&apikey=" + encode(alphaVantageApiKey);
         JsonNode n = alphaVantageRequest(query);
         String seriesName = interval == null ? "Time Series (Daily)" : "Time Series (" + interval + ")";
         JsonNode series = n.path(seriesName);
         if (!series.isObject()) {
-            throw new IllegalStateException("Alpha Vantage returned no candle series for " + requestedSymbol
+            throw new IllegalStateException("Alpha Vantage returned no candle series for " + providerSymbol
                     + ": " + alphaVantageMessage(n));
         }
 
@@ -240,6 +237,10 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
 
     private String providerSymbol(String symbol) {
         return symbol;
+    }
+
+    private String candleProviderSymbol(String symbol) {
+        return "NDX".equals(symbol) ? "QQQ" : symbol;
     }
 
     private String encode(String value) {
