@@ -5,6 +5,7 @@ import org.springframework.mock.env.MockEnvironment;
 
 import java.time.Instant;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,15 +29,18 @@ class FinnhubMarketDataProviderTest {
     }
 
     @Test
-    void rejectsNdxCandlesWithoutCallingProvider() {
+    void mapsNdxCandlesToQqqProxyBeforeCallingProvider() {
         Instant to = Instant.now();
         IllegalStateException error = assertThrows(
                 IllegalStateException.class,
                 () -> provider().candles("NDX", "1D", to.minusSeconds(86400), to)
         );
 
-        assertTrue(error.getMessage().contains("NDX"));
-        assertTrue(error.getMessage().contains("index"));
-        assertTrue(error.getMessage().contains("QQQ"));
+        // The Alpha Vantage request is expected to be attempted with QQQ as the
+        // historical proxy. The test key is intentionally invalid, so the provider
+        // call fails before returning candles; importantly, NDX is no longer rejected
+        // as an unsupported index before the provider is called.
+        assertTrue(error.getMessage().contains("Alpha Vantage"));
+        assertEquals(false, error.getMessage().contains("index symbols are not supported"));
     }
 }
