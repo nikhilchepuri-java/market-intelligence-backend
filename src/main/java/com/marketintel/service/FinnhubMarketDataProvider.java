@@ -12,6 +12,7 @@ import java.net.http.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 @ConditionalOnProperty(name = "market.provider", havingValue = "finnhub")
@@ -22,6 +23,8 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
             .build();
     private final String apiKey;
     private final String alphaVantageApiKey;
+    private final AtomicLong lastAlphaVantageRequestAt = new AtomicLong(0);
+    private static final long ALPHA_VANTAGE_MIN_REQUEST_INTERVAL_MS = 1100L;
 
     public FinnhubMarketDataProvider(org.springframework.core.env.Environment env) {
         this.apiKey = env.getProperty("market.finnhub-api-key", "");
@@ -150,6 +153,7 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
     private JsonNode alphaVantageRequest(String pathAndQuery) {
         String url = "https://www.alphavantage.co" + pathAndQuery;
         try {
+            throttleAlphaVantageRequest();
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                     .timeout(Duration.ofSeconds(15))
                     .header("Accept", "application/json")
@@ -177,6 +181,24 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
             throw new IllegalStateException("Alpha Vantage request interrupted", e);
         } catch (java.io.IOException e) {
             throw new IllegalStateException("Alpha Vantage request failed: " + e.getMessage(), e);
+        }
+    }
+
+    private void throttleAlphaVantageRequest() {
+        while (true) {
+            long now = System.currentTimeMillis();
+            long previous = lastAlphaVantageRequestAt.get();
+            long wait = ALPHA_VANTAGE_MIN_REQUEST_INTERVAL_MS - (now - previous);
+            if (previous == 0 || wait <= 0) {
+                if (lastAlphaVantageRequestAt.compareAndSet(previous, now)) return;
+                continue;
+            }
+            try {
+                Thread.sleep(wait);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Alpha Vantage request interrupted while rate limiting", e);
+            }
         }
     }
 
