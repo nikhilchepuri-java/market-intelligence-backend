@@ -37,7 +37,9 @@ public class TradierOptionsProvider implements OptionsProvider {
             else if (!dates.isMissingNode()) result.add(LocalDate.parse(dates.asText()));
             return result;
         } catch (Exception e) {
-            throw new IllegalStateException("Options expiration request failed for " + underlying, e);
+            String detail = e.getMessage();
+            String suffix = detail == null || detail.isBlank() ? "" : ": " + detail;
+            throw new IllegalStateException("Options expiration request failed for " + underlying + suffix, e);
         }
     }
 
@@ -79,6 +81,10 @@ public class TradierOptionsProvider implements OptionsProvider {
     }
 
     private JsonNode request(String url) throws Exception {
+        if (token == null || token.isBlank()) {
+            throw new IllegalStateException("Tradier token is not configured");
+        }
+
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .header("Authorization", "Bearer " + token)
                 .header("Accept", "application/json")

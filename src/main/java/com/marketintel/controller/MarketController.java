@@ -92,8 +92,21 @@ public class MarketController {
         }
 
         status.put("quotesHealthy", probeQuote());
-        status.put("candlesHealthy", probeCandles());
+        CandleProbeResult candleProbe = probeCandles();
+        status.put("candlesHealthy", candleProbe.healthy());
+        if (!candleProbe.healthy()) status.put("candleError", candleProbe.error());
         status.put("newsHealthy", probeNews());
+
+        String optionsProvider = environment.getProperty("market.options-provider", "unknown");
+        status.put("optionsProvider", optionsProvider);
+        if ("tradier".equalsIgnoreCase(optionsProvider)) {
+            String tradierToken = environment.getProperty("market.tradier-token", "");
+            status.put("tradierTokenConfigured", tradierToken != null && !tradierToken.isBlank());
+            if (tradierToken == null || tradierToken.isBlank()) {
+                status.put("optionsError", "Tradier token is not configured");
+            }
+        }
+
         status.put("message", statusMessage(status));
         status.put("checkedAt", Instant.now().toString());
         return status;
@@ -103,12 +116,21 @@ public class MarketController {
         try { return market.quote("QQQ").price() > 0; } catch (Exception e) { return false; }
     }
 
-    private boolean probeCandles() {
+    private CandleProbeResult probeCandles() {
         try {
             Instant end = Instant.now();
-            return !market.candles("QQQ", "1D", end.minus(Duration.ofDays(10)), end).isEmpty();
-        } catch (Exception e) { return false; }
+            boolean healthy = !market.candles("QQQ", "1D", end.minus(Duration.ofDays(10)), end).isEmpty();
+            return healthy
+                    ? new CandleProbeResult(true, null)
+                    : new CandleProbeResult(false, "Alpha Vantage returned no candles for QQQ");
+        } catch (Exception e) {
+            String message = e.getMessage();
+            return new CandleProbeResult(false,
+                    message == null || message.isBlank() ? "Unknown Alpha Vantage error" : message);
+        }
     }
+
+    private record CandleProbeResult(boolean healthy, String error) {}
 
     private boolean probeNews() {
         try {
@@ -120,8 +142,9 @@ public class MarketController {
         if (!(Boolean) status.get("apiKeyConfigured")) return "FINNHUB_API_KEY is not configured.";
         if (!(Boolean) status.get("quotesHealthy")) return "Finnhub quote check failed. Verify API key, entitlement, rate limit, and provider availability.";
         if (!(Boolean) status.get("candleApiKeyConfigured")) return "ALPHA_VANTAGE_API_KEY is not configured for historical candles.";
-        if (!(Boolean) status.get("candlesHealthy")) return "Alpha Vantage candles check failed. Verify symbol, API key, rate limit, and historical-data entitlement.";
+        if (!(Boolean) status.get("candlesHealthy")) return "Alpha Vantage candles check failed: " + status.get("candleError");
         if (!(Boolean) status.get("newsHealthy")) return "Finnhub news check failed. Verify API access and news entitlement.";
+        if (Boolean.FALSE.equals(status.get("tradierTokenConfigured"))) return "Tradier options are not configured: Tradier token is not configured.";
         return "Finnhub quotes/news and Alpha Vantage candles are healthy.";
     }
 
