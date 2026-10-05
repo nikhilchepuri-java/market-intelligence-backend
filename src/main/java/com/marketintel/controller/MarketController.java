@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 @RestController
 @RequestMapping("/api")
@@ -17,6 +18,8 @@ public class MarketController {
     private final SignalService signals;
     private final NewsService news;
     private final org.springframework.core.env.Environment environment;
+    private final AtomicReference<CandleProbeResult> cachedCandleProbe = new AtomicReference<>();
+    private static final Duration CANDLE_HEALTH_CACHE_TTL = Duration.ofSeconds(60);
 
     public MarketController(MarketDataProvider market, TechnicalService technical, SignalService signals,
                              NewsService news, org.springframework.core.env.Environment environment) {
@@ -41,11 +44,27 @@ public class MarketController {
     public List<Candle> candles(@PathVariable String symbol,
                                 @RequestParam(defaultValue = "1D") String timeframe,
                                 @RequestParam(required = false) Instant from,
-                                @RequestParam(required = false) Instant to) {
+                                @RequestParam(required = false) Instant to,
+                                @RequestParam(required = false) String range) {
         Instant end = to == null ? Instant.now() : to;
-        Instant start = from == null ? end.minus(Duration.ofDays(365)) : from;
+        Instant start;
+        if (from != null) {
+            start = from;
+        } else {
+            start = end.minus(resolveCandleRange(range));
+        }
         if (start.isAfter(end)) throw new IllegalArgumentException("from must be before to");
         return market.candles(symbol, timeframe, start, end);
+    }
+
+    private Duration resolveCandleRange(String range) {
+        if (range == null || range.isBlank()) return Duration.ofDays(90);
+        return switch (range.trim().toUpperCase(Locale.ROOT)) {
+            case "7D", "7" -> Duration.ofDays(7);
+            case "30D", "30" -> Duration.ofDays(30);
+            case "90D", "90" -> Duration.ofDays(90);
+            default -> throw new IllegalArgumentException("Unsupported candle range: " + range + ". Use 7D, 30D, or 90D.");
+        };
     }
 
     @GetMapping("/technicals/{symbol}")
@@ -117,20 +136,27 @@ public class MarketController {
     }
 
     private CandleProbeResult probeCandles() {
+        CandleProbeResult cached = cachedCandleProbe.get();
+        if (cached != null && Duration.between(cached.checkedAt(), Instant.now()).compareTo(CANDLE_HEALTH_CACHE_TTL) < 0) {
+            return cached;
+        }
+
+        CandleProbeResult result;
         try {
             Instant end = Instant.now();
             boolean healthy = !market.candles("QQQ", "1D", end.minus(Duration.ofDays(10)), end).isEmpty();
-            return healthy
-                    ? new CandleProbeResult(true, null)
-                    : new CandleProbeResult(false, "Alpha Vantage returned no candles for QQQ");
+            result = new CandleProbeResult(healthy,
+                    healthy ? null : "Alpha Vantage returned no candles for QQQ", Instant.now());
         } catch (Exception e) {
             String message = e.getMessage();
-            return new CandleProbeResult(false,
-                    message == null || message.isBlank() ? "Unknown Alpha Vantage error" : message);
+            result = new CandleProbeResult(false,
+                    message == null || message.isBlank() ? "Unknown Alpha Vantage error" : message, Instant.now());
         }
+        cachedCandleProbe.set(result);
+        return result;
     }
 
-    private record CandleProbeResult(boolean healthy, String error) {}
+    private record CandleProbeResult(boolean healthy, String error, Instant checkedAt) {}
 
     private boolean probeNews() {
         try {
